@@ -1,0 +1,31 @@
+services:
+  # Service 1: The Database
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sql_server_db
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=YourStrong@Pass123
+    ports:
+      - "1433:1433"
+    healthcheck:
+      test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "YourStrong@Pass123", "-Q", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Service 2: Your C# API
+  api:
+    build: .
+    container_name: task_api_container
+    restart: on-failure  # <-- This ensures the API keeps trying until the DB is awake
+    ports:
+      - "5000:8080"
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+      - ASPNETCORE_ENVIRONMENT=Development
+      # Note the double underscore: This is how .NET maps to appsettings.json
+      - ConnectionStrings__DefaultConnection=Server=db;Database=TaskDb;User Id=sa;Password=YourStrong@Pass123;TrustServerCertificate=True
+    depends_on:
+      db:
+        condition: service_started
