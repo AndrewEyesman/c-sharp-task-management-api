@@ -4,6 +4,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Security.Claims;
 using TaskApi;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,7 +17,6 @@ builder.Services.AddDbContext<TaskDb>(options =>
 // 1. Add Services (Dependency Injection)
 // builder.Services.AddDbContext<TaskDb>(opt => opt.UseSqlite("Data Source=tasks.db"));
 
-builder.Services.AddOpenApi(); // .NET 10's built-in documentation
 
 // 1. Add Security Services
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -38,12 +38,19 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails(); // Adds standard formatting for errors
+builder.Services.AddOpenApi();
 
 
 
 var app = builder.Build();
 
 // --- APP STARTUP PHASE ---
+
+if (app.Environment.IsDevelopment())
+{
+  app.MapOpenApi();
+  app.MapScalarApiReference(); // This adds the interactive UI at /scalar/v1
+}
 
 // Create a "Sandbox" (Manual Scope)
 using (var scope = app.Services.CreateScope())
@@ -83,12 +90,6 @@ using (var scope = app.Services.CreateScope())
 app.UseAuthentication(); // "Show me your ID"
 app.UseAuthorization();  // "Are you allowed in this room?"
 app.UseExceptionHandler(); // This must be at the very top of the pipeline!
-
-// 2. Configure the Pipeline
-if (app.Environment.IsDevelopment())
-{
-  app.MapOpenApi(); // Generates your API documentation
-}
 
 app.MapGet("/tasks", async (TaskDb db) => await db.Tasks.ToListAsync());
 
